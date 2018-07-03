@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/beego/bee/cmd/commands"
-	"github.com/beego/bee/cmd/commands/version"
-	"github.com/beego/bee/config"
-	"github.com/beego/bee/utils"
+	"github.com/ClearGrass/bee/cmd/commands"
+	"github.com/ClearGrass/bee/cmd/commands/version"
+	"github.com/ClearGrass/bee/config"
+	"github.com/ClearGrass/bee/utils"
 
-	beeLogger "github.com/beego/bee/logger"
+	beeLogger "github.com/ClearGrass/bee/logger"
 )
 
 var CmdMigrate = &commands.Command{

@@ -18,11 +18,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/beego/bee/cmd"
-	"github.com/beego/bee/cmd/commands"
-	"github.com/beego/bee/config"
-	"github.com/beego/bee/generate/swaggergen"
-	"github.com/beego/bee/utils"
+	"github.com/ClearGrass/bee/cmd"
+	"github.com/ClearGrass/bee/cmd/commands"
+	"github.com/ClearGrass/bee/config"
+	"github.com/ClearGrass/bee/generate/swaggergen"
+	"github.com/ClearGrass/bee/utils"
 )
 
 func main() {

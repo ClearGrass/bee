@@ -14,10 +14,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/beego/bee/cmd/commands"
-	beeLogger "github.com/beego/bee/logger"
-	"github.com/beego/bee/logger/colors"
-	"github.com/beego/bee/utils"
+	"github.com/ClearGrass/bee/cmd/commands"
+	beeLogger "github.com/ClearGrass/bee/logger"
+	"github.com/ClearGrass/bee/logger/colors"
+	"github.com/ClearGrass/bee/utils"
 	"gopkg.in/yaml.v2"
 )
 

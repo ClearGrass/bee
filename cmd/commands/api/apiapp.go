@@ -20,11 +20,11 @@ import (
 	path "path/filepath"
 	"strings"
 
-	"github.com/beego/bee/cmd/commands"
-	"github.com/beego/bee/cmd/commands/version"
-	"github.com/beego/bee/generate"
-	beeLogger "github.com/beego/bee/logger"
-	"github.com/beego/bee/utils"
+	"github.com/ClearGrass/bee/cmd/commands"
+	"github.com/ClearGrass/bee/cmd/commands/version"
+	"github.com/ClearGrass/bee/generate"
+	"github.com/ClearGrass/bee/logger"
+	"github.com/ClearGrass/bee/utils"
 )
 
 var CmdApiapp = &commands.Command{
@@ -48,13 +48,21 @@ var CmdApiapp = &commands.Command{
 	    ├── {{"controllers"|foldername}}
 	    │     └── object.go
 	    │     └── user.go
+        │     └── common_controller.go
 	    ├── {{"routers"|foldername}}
 	    │     └── router.go
 	    ├── {{"tests"|foldername}}
 	    │     └── default_test.go
-	    └── {{"models"|foldername}}
-	          └── object.go
-	          └── user.go
+	    ├── {{"models"|foldername}}
+	    │       └── object.go
+	    │       └── user.go
+		├── {{"dao"|foldername}}
+		│      
+		├── {{"utils"|foldername}}
+        │       └── contants.go
+		├── {{"filter"|foldername}}
+        │   
+        └── {{"service"|foldername}}
 `,
 	PreRun: func(cmd *commands.Command, args []string) { version.ShowShortVersionBanner() },
 	Run:    createAPI,
@@ -66,13 +74,32 @@ autorender = false
 copyrequestbody = true
 EnableDocs = true
 `
+var apiapolloconf = `{
+    "appId":"{{.Appname}}",
+    "cluster":"DEV",
+    "namespaceNames":["application"],
+    "ip":"54.222.185.168:8081"
+}
+
+`
 var apiMaingo = `package main
 
 import (
 	_ "{{.Appname}}/routers"
-
+    "{{.Appname}}/utils"
 	"github.com/astaxie/beego"
+    //"github.com/philchia/agollo"
+	//"github.com/ClearGrass/code/util"
+
 )
+func init() {
+    
+    //agollo.StartWithConfFile(util.GetApolloConfigFile(beego.AppConfig.String("appname")))
+
+	//init constants
+	utils.InitConstants()
+
+}
 
 func main() {
 	if beego.BConfig.RunMode == "dev" {
@@ -285,15 +312,13 @@ func DeleteUser(uid string) {
 var apiControllers = `package controllers
 
 import (
-	"{{.Appname}}/models"
+	"test/models"
 	"encoding/json"
-
-	"github.com/astaxie/beego"
 )
 
 // Operations about object
 type ObjectController struct {
-	beego.Controller
+	BaseController
 }
 
 // @Title Create
@@ -306,8 +331,8 @@ func (o *ObjectController) Post() {
 	var ob models.Object
 	json.Unmarshal(o.Ctx.Input.RequestBody, &ob)
 	objectid := models.AddOne(ob)
-	o.Data["json"] = map[string]string{"ObjectId": objectid}
-	o.ServeJSON()
+	data := map[string]string{"ObjectId": objectid}
+	o.resSucessJson(data)
 }
 
 // @Title Get
@@ -321,12 +346,11 @@ func (o *ObjectController) Get() {
 	if objectId != "" {
 		ob, err := models.GetOne(objectId)
 		if err != nil {
-			o.Data["json"] = err.Error()
+			o.resServerErrorJson()
 		} else {
-			o.Data["json"] = ob
+			o.resSucessJson(ob)
 		}
 	}
-	o.ServeJSON()
 }
 
 // @Title GetAll
@@ -336,8 +360,7 @@ func (o *ObjectController) Get() {
 // @router / [get]
 func (o *ObjectController) GetAll() {
 	obs := models.GetAll()
-	o.Data["json"] = obs
-	o.ServeJSON()
+	o.resSucessJson(obs)
 }
 
 // @Title Update
@@ -354,11 +377,10 @@ func (o *ObjectController) Put() {
 
 	err := models.Update(objectId, ob.Score)
 	if err != nil {
-		o.Data["json"] = err.Error()
+		o.resServerErrorJson()
 	} else {
-		o.Data["json"] = "update success!"
+		o.resSucessJson("update success!")
 	}
-	o.ServeJSON()
 }
 
 // @Title Delete
@@ -370,23 +392,21 @@ func (o *ObjectController) Put() {
 func (o *ObjectController) Delete() {
 	objectId := o.Ctx.Input.Param(":objectId")
 	models.Delete(objectId)
-	o.Data["json"] = "delete success!"
-	o.ServeJSON()
+	o.resSucessJson("delete success!")
 }
 
 `
 var apiControllers2 = `package controllers
 
 import (
-	"{{.Appname}}/models"
+	"test/models"
 	"encoding/json"
 
-	"github.com/astaxie/beego"
 )
 
 // Operations about Users
 type UserController struct {
-	beego.Controller
+	BaseController
 }
 
 // @Title CreateUser
@@ -399,8 +419,8 @@ func (u *UserController) Post() {
 	var user models.User
 	json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 	uid := models.AddUser(user)
-	u.Data["json"] = map[string]string{"uid": uid}
-	u.ServeJSON()
+	result := map[string]string{"uid": uid}
+	u.resSucessJson(result)
 }
 
 // @Title GetAll
@@ -409,8 +429,7 @@ func (u *UserController) Post() {
 // @router / [get]
 func (u *UserController) GetAll() {
 	users := models.GetAllUsers()
-	u.Data["json"] = users
-	u.ServeJSON()
+	u.resSucessJson(users)
 }
 
 // @Title Get
@@ -424,13 +443,13 @@ func (u *UserController) Get() {
 	if uid != "" {
 		user, err := models.GetUser(uid)
 		if err != nil {
-			u.Data["json"] = err.Error()
+			u.resServerErrorJson()
 		} else {
-			u.Data["json"] = user
+			u.resSucessJson(user)
 		}
 	}
-	u.ServeJSON()
 }
+
 
 // @Title Update
 // @Description update the user
@@ -446,12 +465,11 @@ func (u *UserController) Put() {
 		json.Unmarshal(u.Ctx.Input.RequestBody, &user)
 		uu, err := models.UpdateUser(uid, &user)
 		if err != nil {
-			u.Data["json"] = err.Error()
+			u.resServerErrorJson()
 		} else {
-			u.Data["json"] = uu
+			u.resSucessJson(uu)
 		}
 	}
-	u.ServeJSON()
 }
 
 // @Title Delete
@@ -463,8 +481,7 @@ func (u *UserController) Put() {
 func (u *UserController) Delete() {
 	uid := u.GetString(":uid")
 	models.DeleteUser(uid)
-	u.Data["json"] = "delete success!"
-	u.ServeJSON()
+	u.resSucessJson("delete success!")
 }
 
 // @Title Login
@@ -478,11 +495,10 @@ func (u *UserController) Login() {
 	username := u.GetString("username")
 	password := u.GetString("password")
 	if models.Login(username, password) {
-		u.Data["json"] = "login success"
+		u.resSucessJson("login success")
 	} else {
-		u.Data["json"] = "user not exist"
+		u.resSucessJson("user not exist")
 	}
-	u.ServeJSON()
 }
 
 // @Title logout
@@ -490,10 +506,51 @@ func (u *UserController) Login() {
 // @Success 200 {string} logout success
 // @router /logout [get]
 func (u *UserController) Logout() {
-	u.Data["json"] = "logout success"
-	u.ServeJSON()
+	u.resSucessJson("logout success")
 }
 
+`
+
+var apiControllerCommon = `package controllers
+
+import (
+	"github.com/ClearGrass/code/resultcode"
+	"github.com/ClearGrass/code/util"
+	"github.com/astaxie/beego"
+)
+
+
+var Signature = "signature"
+
+type BaseController struct {
+	beego.Controller
+}
+
+func (self *BaseController) resSucessJson(data interface{}) {
+	self.resJson(resultcode.ResultCodeSuccess, data)
+}
+
+func (self *BaseController) resParamErrorJson() {
+	self.resJson(resultcode.ResultCodeParamError, nil)
+}
+
+func (self *BaseController) resIllegalRequestJson() {
+	self.resJson(resultcode.ResultCodeIllegal, nil)
+}
+
+func (self *BaseController) resFailedErrorJson()  {
+	self.resJson(resultcode.ResultCodeFailed, nil)
+}
+
+func (self *BaseController)resServerErrorJson()  {
+	self.resJson(resultcode.ResultCodeServerError, nil)
+}
+
+func (self *BaseController) resJson(resultCode resultcode.ResultCode, data interface{}) {
+	result := util.GenrateJsonResult(resultCode, data)
+	self.Data["json"] = result
+	self.ServeJSON()
+}
 `
 
 var apiTests = `package test
@@ -536,6 +593,21 @@ func TestGet(t *testing.T) {
 
 `
 
+var apiConstants = `package utils
+
+import (
+	//"github.com/philchia/agollo"
+)
+
+var LocationSecretKey string
+
+func InitConstants() {
+	//LocationSecretKey = agollo.GetStringValue("location.secret.key", "")
+}
+
+`
+
+
 func init() {
 	CmdApiapp.Flag.Var(&generate.Tables, "tables", "List of table names separated by a comma.")
 	CmdApiapp.Flag.Var(&generate.SQLDriver, "driver", "Database driver. Either mysql, postgres or sqlite.")
@@ -569,15 +641,33 @@ func createAPI(cmd *commands.Command, args []string) int {
 
 	os.MkdirAll(appPath, 0755)
 	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", appPath, "\x1b[0m")
+
 	os.Mkdir(path.Join(appPath, "conf"), 0755)
 	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "conf"), "\x1b[0m")
-	os.Mkdir(path.Join(appPath, "controllers"), 0755)
-	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "controllers"), "\x1b[0m")
-	os.Mkdir(path.Join(appPath, "tests"), 0755)
-	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "tests"), "\x1b[0m")
 	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "conf", "app.conf"), "\x1b[0m")
 	utils.WriteToFile(path.Join(appPath, "conf", "app.conf"),
 		strings.Replace(apiconf, "{{.Appname}}", path.Base(args[0]), -1))
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "conf", "apollo.properties"), "\x1b[0m")
+	utils.WriteToFile(path.Join(appPath, "conf", "apollo.properties"),
+		strings.Replace(apiapolloconf, "{{.Appname}}", path.Base(args[0]), -1))
+
+	os.Mkdir(path.Join(appPath, "controllers"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "controllers"), "\x1b[0m")
+
+	os.MkdirAll(path.Join(appPath, "tests/conf"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "tests/conf"), "\x1b[0m")
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "tests/conf", "app.conf"), "\x1b[0m")
+	utils.WriteToFile(path.Join(appPath, "tests/conf", "app.conf"),
+		strings.Replace(apiconf, "{{.Appname}}", path.Base(args[0]), -1))
+
+	os.Mkdir(path.Join(appPath,"dao"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "dao"), "\x1b[0m")
+	os.Mkdir(path.Join(appPath,"service"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "service"), "\x1b[0m")
+	os.Mkdir(path.Join(appPath,"filter"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "filter"), "\x1b[0m")
+	os.Mkdir(path.Join(appPath,"utils"), 0755)
+	fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "utils"), "\x1b[0m")
 
 	if generate.SQLConn != "" {
 		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "main.go"), "\x1b[0m")
@@ -614,6 +704,10 @@ func createAPI(cmd *commands.Command, args []string) int {
 		utils.WriteToFile(path.Join(appPath, "controllers", "user.go"),
 			strings.Replace(apiControllers2, "{{.Appname}}", packPath, -1))
 
+		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "controllers", "common_controller.go"), "\x1b[0m")
+		utils.WriteToFile(path.Join(appPath, "controllers", "common_controller.go"),
+			strings.Replace(apiControllerCommon, "{{.Appname}}", packPath, -1))
+
 		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "tests", "default_test.go"), "\x1b[0m")
 		utils.WriteToFile(path.Join(appPath, "tests", "default_test.go"),
 			strings.Replace(apiTests, "{{.Appname}}", packPath, -1))
@@ -628,9 +722,15 @@ func createAPI(cmd *commands.Command, args []string) int {
 		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "models", "user.go"), "\x1b[0m")
 		utils.WriteToFile(path.Join(appPath, "models", "user.go"), APIModels2)
 
+		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "utils", "constants.go"), "\x1b[0m")
+		utils.WriteToFile(path.Join(appPath, "utils" ,"constants.go"),
+			strings.Replace(apiConstants, "{{.Appname}}", packPath, -1))
+
 		fmt.Fprintf(output, "\t%s%screate%s\t %s%s\n", "\x1b[32m", "\x1b[1m", "\x1b[21m", path.Join(appPath, "main.go"), "\x1b[0m")
 		utils.WriteToFile(path.Join(appPath, "main.go"),
 			strings.Replace(apiMaingo, "{{.Appname}}", packPath, -1))
+
+
 	}
 	beeLogger.Log.Success("New API successfully created!")
 	return 0

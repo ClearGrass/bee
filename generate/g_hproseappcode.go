@@ -24,9 +24,9 @@ import (
 	"path"
 	"strings"
 
-	beeLogger "github.com/beego/bee/logger"
-	"github.com/beego/bee/logger/colors"
-	"github.com/beego/bee/utils"
+	beeLogger "github.com/ClearGrass/bee/logger"
+	"github.com/ClearGrass/bee/logger/colors"
+	"github.com/ClearGrass/bee/utils"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 )
